@@ -10,12 +10,16 @@
     "build": "next build",
     "start": "next start",
     "export": "next export",
-    "predeploy": "npm run export",
+    "predeploy": "npm run build",
     "deploy": "gh-pages -d out"
   },
   "devDependencies": {
+    "@types/node": "24.5.0",
+    "@types/react": "19.1.13",
+    "gh-pages": "^5.0.0",
     "prettier": "^3.5.3",
-    "gh-pages": "^5.0.0"
+    "prisma": "^6.16.2",
+    "typescript": "5.9.2"
   },
   "resolutions": {
     "braces": "^3.0.3",
@@ -29,5 +33,11 @@
     "node": ">=22",
     "pnpm": ">=9.0.0"
   },
-  "packageManager": "pnpm@10.8.1"
+  "packageManager": "pnpm@10.8.1",
+  "dependencies": {
+    "@prisma/client": "^6.16.2",
+    "next": "^15.5.3",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  }
 }
