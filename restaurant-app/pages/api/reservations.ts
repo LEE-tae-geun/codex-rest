@@ -3,19 +3,44 @@ import prisma from "../../lib/prisma"
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === "POST") {
-    const { userId, placeId, datetime, partySize, notes } = req.body
+    const { userId, placeId, placeExternalId, place, datetime, partySize, notes } = req.body
 
-    if (!placeId || !datetime || !partySize) {
-      res.status(400).json({ error: "placeId, datetime and partySize required" })
+    if (!datetime || !partySize) {
+      res.status(400).json({ error: "datetime and partySize required" })
       return
     }
 
     try {
+      let finalPlaceId: number | null = null
+
+      if (placeId) {
+        finalPlaceId = Number(placeId)
+      } else if (placeExternalId) {
+        // find or create Place by externalId
+        let found = await prisma.place.findUnique({ where: { externalId: String(placeExternalId) } })
+        if (!found) {
+          found = await prisma.place.create({
+            data: {
+              externalId: String(placeExternalId),
+              name: place?.name ?? "Unknown",
+              address: place?.address ?? "",
+              lat: place?.lat ?? 0,
+              lng: place?.lng ?? 0,
+              phone: place?.phone ?? null
+            }
+          })
+        }
+        finalPlaceId = found.id
+      } else {
+        res.status(400).json({ error: "placeId or placeExternalId required" })
+        return
+      }
+
       const dt = new Date(datetime)
       const reservation = await prisma.reservation.create({
         data: {
           userId: userId ?? undefined,
-          placeId,
+          placeId: finalPlaceId,
           datetime: dt,
           partySize,
           notes
@@ -45,4 +70,3 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader("Allow", ["GET", "POST"])
   res.status(405).end(`Method ${req.method} Not Allowed`)
 }
-
