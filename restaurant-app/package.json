@@ -7,17 +7,23 @@
     "build": "next build",
     "start": "next start",
     "prisma:generate": "prisma generate",
-    "prisma:migrate:dev": "prisma migrate dev --name init"
+    "prisma:migrate:dev": "prisma migrate dev --name init",
+    "export": "next export",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
   },
   "dependencies": {
+    "@prisma/client": "5.2.0",
     "next": "13.4.7",
     "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "@prisma/client": "5.2.0"
+    "react-dom": "18.2.0"
   },
   "devDependencies": {
+    "@types/node": "24.5.0",
+    "@types/react": "19.1.13",
+    "gh-pages": "^6.3.0",
     "prisma": "5.2.0",
     "typescript": "5.2.2"
-  }
+  },
+  "homepage": "https://LEE-tae-geun.github.io/codex-rest"
 }
-
