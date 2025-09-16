@@ -1,29 +1,33 @@
 {
-  "name": "restaurant-app",
-  "version": "0.1.0",
+  "name": "codex-monorepo",
   "private": true,
+  "description": "Tools for repo-wide maintenance.",
+  "homepage": "https://LEE-tae-geun.github.io/codex-rest",
   "scripts": {
+    "format": "prettier --check *.json *.md .github/workflows/*.yml **/*.js",
+    "format:fix": "prettier --write *.json *.md .github/workflows/*.yml **/*.js",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate:dev": "prisma migrate dev --name init",
     "export": "next export",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
-  },
-  "dependencies": {
-    "@prisma/client": "5.2.0",
-    "next": "13.4.7",
-    "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "predeploy": "npm run export",
+    "deploy": "gh-pages -d out"
   },
   "devDependencies": {
-    "@types/node": "24.5.0",
-    "@types/react": "19.1.13",
-    "gh-pages": "^6.3.0",
-    "prisma": "5.2.0",
-    "typescript": "5.2.2"
+    "prettier": "^3.5.3",
+    "gh-pages": "^5.0.0"
   },
-  "homepage": "https://LEE-tae-geun.github.io/codex-rest"
+  "resolutions": {
+    "braces": "^3.0.3",
+    "micromatch": "^4.0.8",
+    "semver": "^7.7.1"
+  },
+  "overrides": {
+    "punycode": "^2.3.1"
+  },
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@10.8.1"
 }
