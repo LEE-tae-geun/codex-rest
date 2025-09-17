@@ -17,7 +17,7 @@ jobs:
       - name: Use Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
 
       - name: Enable Corepack and prepare pnpm
         run: |
@@ -28,15 +28,13 @@ jobs:
         working-directory: restaurant-app
         run: pnpm install
 
-      - name: Build and export (restaurant-app)
+      - name: Build (restaurant-app)
         working-directory: restaurant-app
-        run: |
-          pnpm build
-          pnpm export
+        run: pnpm build # next export 제거
 
       - name: Deploy to GitHub Pages
+        working-directory: restaurant-app
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./restaurant-app/out
-
