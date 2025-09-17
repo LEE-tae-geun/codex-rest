@@ -1,164 +1,338 @@
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useRef, useState } from "react";
 
 type Place = {
-  id: number | string
-  name: string
-  category?: string
-  address?: string
-  lat?: number
-  lng?: number
-  phone?: string
+  id: number | string;
+  name: string;
+  category?: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
+  phone?: string;
+};
+
+const imageMap: Record<number, string> = {
+  1: "김치찌개.jpg",
+  2: "떡볶이.jpg",
+  3: "스테이크.jpg",
+  4: "초밥.jpg",
+  5: "치킨.jpg",
+};
+
+function getImageForPlace(p: Place) {
+  if (typeof p.id === "number" && imageMap[p.id])
+    return `/image/${imageMap[p.id]}`;
+  return `https://source.unsplash.com/featured/?${encodeURIComponent(p.name)}`;
 }
 
-export default function Home() {
-  const [q, setQ] = useState("")
-  const [results, setResults] = useState<Place[]>([])
-  const mapRef = useRef<HTMLDivElement | null>(null)
-  const kakaoLoaded = useRef(false)
-  const markersRef = useRef<any[]>([])
+function ReservationModal({
+  place,
+  onClose,
+}: {
+  place: Place | null;
+  onClose: () => void;
+}) {
+  const [datetime, setDatetime] = useState<string>("");
+  const [partySize, setPartySize] = useState<number>(2);
 
-  useEffect(() => {
-    const key = process.env.NEXT_PUBLIC_KAKAO_JS_KEY
-    if (!key) return
+  if (!place) return null;
 
-    // Load Kakao SDK dynamically
-    const existing = document.getElementById("kakao-sdk")
-    if (!existing) {
-      const script = document.createElement("script")
-      script.id = "kakao-sdk"
-      script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&autoload=false&libraries=services`
-      script.async = true
-      document.head.appendChild(script)
-
-      script.onload = () => {
-        kakaoLoaded.current = true
-        // initialize map when first loaded
-        initMap()
-      }
-    } else {
-      kakaoLoaded.current = true
-      initMap()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  function initMap() {
-    const key = (process.env.NEXT_PUBLIC_KAKAO_JS_KEY as string) || ""
-    if (!key || !mapRef.current) return
-    // @ts-ignore
-    const kakao = (window as any).kakao
-    if (!kakao) return
-
-    kakao.maps.load(() => {
-      const container = mapRef.current as HTMLDivElement
-      const options = { center: new kakao.maps.LatLng(37.5665, 126.978), level: 5 }
-      const map = new kakao.maps.Map(container, options)
-      ;(map as any).kakao = kakao
-      // try to use geolocation
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition((pos) => {
-          const { latitude, longitude } = pos.coords
-          map.setCenter(new kakao.maps.LatLng(latitude, longitude))
-        })
-      }
-    })
-  }
-
-  // update markers whenever results change
-  useEffect(() => {
-    const key = process.env.NEXT_PUBLIC_KAKAO_JS_KEY
-    if (!key) return
-    // @ts-ignore
-    const kakao = (window as any).kakao
-    if (!kakao) return
-    const container = mapRef.current
-    if (!container) return
-    const map = kakao.maps.getMap(container)
-    if (!map) return
-
-    // clear old markers
-    markersRef.current.forEach((m) => m.setMap(null))
-    markersRef.current = []
-
-    results.forEach((p) => {
-      if (!p.lat || !p.lng) return
-      const marker = new kakao.maps.Marker({ position: new kakao.maps.LatLng(p.lat, p.lng) })
-      marker.setMap(map)
-      markersRef.current.push(marker)
-    })
-  }, [results])
-
-  async function search(e?: React.FormEvent) {
-    e?.preventDefault()
-    const res = await fetch(`/api/places?q=${encodeURIComponent(q)}`)
-    const data = await res.json()
-    setResults(data.results || [])
-  }
-
-  async function makeReservation(place: Place) {
-    const datetime = prompt("예약 날짜/시간을 ISO 형식으로 입력하세요 (예: 2025-09-16T19:00)")
-    if (!datetime) return
-    const partySizeStr = prompt("인원 수를 입력하세요", "2")
-    const partySize = partySizeStr ? parseInt(partySizeStr, 10) : 2
-
-    const body: any = { datetime, partySize }
-    // if place has numeric id that matches our DB, send placeId; otherwise send externalId + data
-    if (typeof place.id === "number") body.placeId = place.id
-    else body.placeExternalId = String(place.id)
-    body.place = { name: place.name, address: place.address, lat: place.lat, lng: place.lng, phone: place.phone }
+  async function submit() {
+    const body: any = { datetime, partySize };
+    if (typeof place?.id === "number") body.placeId = place.id;
+    else body.placeExternalId = String(place?.id);
+    body.place = {
+      name: place?.name,
+      address: place?.address,
+      lat: place?.lat,
+      lng: place?.lng,
+      phone: place?.phone,
+    };
 
     const resp = await fetch("/api/reservations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    })
-    if (resp.ok) alert("예약이 생성되었습니다.")
-    else {
-      const err = await resp.json()
-      alert(`예약 실패: ${err.error || resp.statusText}`)
+      body: JSON.stringify(body),
+    });
+    if (resp.ok) {
+      alert("예약이 성공했습니다");
+      onClose();
+    } else {
+      const err = await resp.json().catch(() => ({}));
+      alert(`예약 실패: ${err.error || resp.statusText}`);
     }
   }
 
   return (
-    <div style={{ padding: 24, fontFamily: "Arial, sans-serif" }}>
-      <h1>주변 맛집 찾아 예약하기</h1>
-      <form onSubmit={search} style={{ marginBottom: 12 }}>
-        <input
-          placeholder="검색어 (예: 한식, 김밥)"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          style={{ padding: 8, width: 300 }}
-        />
-        <button style={{ marginLeft: 8, padding: "8px 12px" }} onClick={search}>
-          검색
-        </button>
-      </form>
+    <div className="modalBackdrop">
+      <div className="modal">
+        <h3>예약 — {place.name}</h3>
+        <div className="muted">주소: {place.address}</div>
 
-      <div style={{ display: "flex", gap: 16 }}>
-        <div style={{ flex: 1 }}>
-          {results.length === 0 ? (
-            <p>검색 결과가 없습니다. 검색어를 입력하고 검색하세요.</p>
-          ) : (
-            <ul>
-              {results.map((p) => (
-                <li key={String(p.id)} style={{ marginBottom: 12 }}>
-                  <strong>{p.name}</strong>{' '}
-                  <span style={{ color: "#666" }}>{p.category}</span>
-                  <div style={{ color: "#333" }}>{p.address}</div>
-                  <div style={{ marginTop: 6 }}>
-                    <button onClick={() => makeReservation(p)} style={{ marginRight: 8 }}>
-                      예약하기
-                    </button>
-                    <a href={`/place/${p.id}`}>상세보기</a>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+        <div className="formRow">
+          <input
+            value={datetime}
+            onChange={(e) => setDatetime(e.target.value)}
+            placeholder="예: 2025-09-16T19:00"
+          />
+          <select
+            value={String(partySize)}
+            onChange={(e) => setPartySize(parseInt(e.target.value, 10))}
+          >
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="6">6</option>
+          </select>
         </div>
 
-        <div style={{ width: 480, height: 480, border: "1px solid #ddd" }} ref={mapRef} id="map" />
+        <div className="modalActions">
+          <button className="btn secondary" onClick={onClose}>
+            취소
+          </button>
+          <button
+            className="btn"
+            onClick={submit}
+            style={{ background: "var(--accent)", color: "#fff" }}
+          >
+            예약하기
+          </button>
+        </div>
       </div>
     </div>
-  )
+  );
+}
+
+export default function Home() {
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<Place[]>([]);
+  const [recommended, setRecommended] = useState<Place[]>([]);
+  const mapRef = useRef<HTMLDivElement | null>(null);
+  const kakaoLoaded = useRef(false);
+  const markersRef = useRef<any[]>([]);
+  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+
+  useEffect(() => {
+    // Load recommended places on first render
+    (async () => {
+      try {
+        const resp = await fetch("/api/places");
+        const json = await resp.json();
+        const rec = json.results || [];
+        setRecommended(rec.slice(0, 4));
+        // show recommended as initial results so the first screen isn't empty
+        setResults(rec);
+      } catch (err) {
+        console.error("Failed to load recommended", err);
+      }
+    })();
+    const key = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
+    if (!key) return;
+
+    const existing = document.getElementById("kakao-sdk");
+    if (!existing) {
+      const script = document.createElement("script");
+      script.id = "kakao-sdk";
+      script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&autoload=false&libraries=services`;
+      script.async = true;
+      document.head.appendChild(script);
+
+      script.onload = () => {
+        kakaoLoaded.current = true;
+        initMap();
+      };
+    } else {
+      kakaoLoaded.current = true;
+      initMap();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function initMap() {
+    const key = (process.env.NEXT_PUBLIC_KAKAO_JS_KEY as string) || "";
+    if (!key || !mapRef.current) return;
+    // @ts-ignore
+    const kakao = (window as any).kakao;
+    if (!kakao) return;
+
+    kakao.maps.load(() => {
+      const container = mapRef.current as HTMLDivElement;
+      const options = {
+        center: new kakao.maps.LatLng(37.5665, 126.978),
+        level: 5,
+      };
+      const map = new kakao.maps.Map(container, options);
+      (map as any).kakao = kakao;
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((pos) => {
+          const { latitude, longitude } = pos.coords;
+          map.setCenter(new kakao.maps.LatLng(latitude, longitude));
+        });
+      }
+    });
+  }
+
+  useEffect(() => {
+    const key = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
+    if (!key) return;
+    // @ts-ignore
+    const kakao = (window as any).kakao;
+    if (!kakao) return;
+    const container = mapRef.current;
+    if (!container) return;
+    const map = kakao.maps.getMap(container);
+    if (!map) return;
+
+    markersRef.current.forEach((m) => m.setMap(null));
+    markersRef.current = [];
+
+    results.forEach((p) => {
+      if (!p.lat || !p.lng) return;
+      const marker = new kakao.maps.Marker({
+        position: new kakao.maps.LatLng(p.lat, p.lng),
+      });
+      marker.setMap(map);
+      markersRef.current.push(marker);
+    });
+  }, [results]);
+
+  async function search(e?: React.FormEvent) {
+    e?.preventDefault();
+    const res = await fetch(`/api/places?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    setResults(data.results || []);
+  }
+
+  const categories = Array.from(
+    new Set(results.map((r) => r.category).filter(Boolean)),
+  ) as string[];
+
+  return (
+    <div className="container">
+      <div className="header">
+        <div className="brand">예약앱</div>
+        <div className="searchRow">
+          <form onSubmit={search}>
+            <input
+              className="searchInput"
+              placeholder="음식/매장 검색 (예: 김치찌개)"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </form>
+          <button className="searchBtn" onClick={(e) => search(e as any)}>
+            검색
+          </button>
+        </div>
+      </div>
+
+      <div className="layout">
+        <div className="left">
+          <div className="card">
+            <div style={{ fontWeight: 700 }}>추천 식당</div>
+            <div
+              style={{
+                marginTop: 10,
+                display: "flex",
+                gap: 10,
+                overflowX: "auto",
+              }}
+            >
+              {recommended.map((p) => (
+                <div key={String(p.id)} style={{ minWidth: 180 }}>
+                  <a
+                    href={`/place/${p.id}`}
+                    style={{ textDecoration: "none", color: "inherit" }}
+                  >
+                    <img
+                      style={{
+                        width: "100%",
+                        height: 110,
+                        objectFit: "cover",
+                        borderRadius: 6,
+                      }}
+                      src={getImageForPlace(p)}
+                      alt={p.name}
+                    />
+                    <div style={{ marginTop: 6, fontWeight: 600 }}>
+                      {p.name}
+                    </div>
+                    <div className="muted">{p.category}</div>
+                  </a>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="card">
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <div style={{ fontWeight: 700 }}>검색 결과</div>
+              <div className="muted">{results.length}곳</div>
+            </div>
+
+            <div className="chips" style={{ marginTop: 10 }}>
+              {categories.map((c) => (
+                <div key={c} className="chip">
+                  {c}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 12 }} className="placeList">
+              {results.length === 0 ? (
+                <div className="muted">
+                  검색 결과가 없습니다. 검색어를 입력해보세요.
+                </div>
+              ) : (
+                results.map((p) => (
+                  <div key={String(p.id)} className="placeRow">
+                    <img
+                      className="placeImg"
+                      src={getImageForPlace(p)}
+                      alt={p.name}
+                    />
+                    <div className="placeInfo">
+                      <div className="placeName">{p.name}</div>
+                      <div className="muted">{p.category}</div>
+                      <div style={{ marginTop: 6 }} className="muted">
+                        {p.address}
+                      </div>
+                      <div className="actions">
+                        <button
+                          className="btn"
+                          onClick={() => setSelectedPlace(p)}
+                          style={{ background: "#111", color: "#fff" }}
+                        >
+                          예약하기
+                        </button>
+                        <a className="btn secondary" href={`/place/${p.id}`}>
+                          상세보기
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="right">
+          <div className="card mapBox" ref={mapRef} id="map" />
+        </div>
+      </div>
+
+      {selectedPlace && (
+        <ReservationModal
+          place={selectedPlace}
+          onClose={() => setSelectedPlace(null)}
+        />
+      )}
+    </div>
+  );
 }

@@ -1,7 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true
-}
+  output: "export",
+  images: {
+    unoptimized: true, // GitHub Pages에서는 필요
+  },
+};
 
-module.exports = nextConfig
-
+module.exports = nextConfig;
